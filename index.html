@@ -2,230 +2,150 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>My Roblox Clone</title>
+    <title>My 3D Online World</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <style>
-        /* 기본 스타일 설정 */
-        body, html {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            font-family: 'Arial', sans-serif;
-            background-color: #111;
-            color: white;
-            overflow: hidden;
-        }
-
-        .screen {
-            display: none; /* 기본적으로 모든 화면은 숨김 */
-            width: 100%;
-            height: 100%;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .active {
-            display: flex; /* 현재 활성화된 화면만 보여줌 */
-        }
-
-        /* 1. 로그인 화면 스타일 */
-        #login-screen {
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-        }
-        .login-box {
-            background: rgba(255, 255, 255, 0.1);
-            padding: 40px;
-            border-radius: 15px;
-            backdrop-filter: blur(10px);
-            text-align: center;
-        }
-        input {
-            display: block;
-            width: 250px;
-            padding: 10px;
-            margin: 10px 0;
-            border-radius: 5px;
-            border: none;
-        }
-        button {
-            width: 100%;
-            padding: 10px;
-            background-color: #00b0ff;
-            border: none;
-            color: white;
-            font-weight: bold;
-            cursor: pointer;
-            border-radius: 5px;
-            margin-top: 10px;
-        }
-        button:hover { background-color: #0081cb; }
-
-        /* 2. 메인 홈 화면 스타일 */
-        #home-screen {
-            background-color: #181818;
-        }
-        .navbar {
-            width: 100%;
-            height: 60px;
-            background-color: #252525;
-            display: flex;
-            align-items: center;
-            padding: 0 20px;
-            position: absolute;
-            top: 0;
-        }
-        .game-card {
-            width: 200px;
-            height: 250px;
-            background-color: #333;
-            border-radius: 10px;
-            overflow: hidden;
-            cursor: pointer;
-            transition: transform 0.2s;
-        }
-        .game-card:hover { transform: scale(1.05); }
-        .game-card img { width: 100%; height: 150px; background-color: #555; }
-        .game-info { padding: 10px; }
-
-        /* 3. 게임 창 화면 스타일 */
-        #game-screen {
-            background-color: #000;
-            position: relative;
-        }
-        #game-canvas {
-            border: 2px solid #555;
-            background-color: #222;
-        }
-        .game-ui {
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            pointer-events: none;
-        }
-        .back-btn {
-            position: absolute;
-            top: 20px;
-            right: 20px;
-            width: 100px;
-            background-color: red;
-        }
+        body { margin: 0; overflow: hidden; font-family: sans-serif; background: #000; }
+        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
+        .screen { pointer-events: all; display: none; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; background: rgba(0,0,0,0.8); color: white; }
+        .active { display: flex; }
+        input, button { margin: 10px; padding: 10px; font-size: 1.2rem; }
+        #game-info { position: absolute; top: 10px; left: 10px; color: white; pointer-events: none; }
     </style>
 </head>
 <body>
 
     <!-- 1. 로그인 화면 -->
     <div id="login-screen" class="screen active">
-        <div class="login-box">
-            <h1>ROBLOX CLONE</h1>
-            <input type="text" id="username" placeholder="사용자 이름">
-            <input type="password" placeholder="비밀번호">
-            <button onclick="goToHome()">로그인</button>
-        </div>
+        <h1>ROBLOX CLONE 3D</h1>
+        <input type="text" id="nickname" placeholder="닉네임 입력">
+        <button onclick="joinGame()">게임 시작</button>
     </div>
 
-    <!-- 2. 메인 홈 화면 -->
-    <div id="home-screen" class="screen">
-        <div class="navbar">
-            <h2>Roblox Home</h2>
-            <div style="margin-left: auto;" id="user-display"></div>
+    <!-- 2. 게임 화면 UI -->
+    <div id="ui-layer">
+        <div id="game-info" style="display:none;">
+            <p>접속 중: <span id="display-name"></span></p>
+            <p>WASD로 이동 / 다른 플레이어를 찾아보세요!</p>
         </div>
-        <div style="margin-top: 80px;">
-            <h3>추천 게임</h3>
-            <div class="game-card" onclick="goToGame()">
-                <img src="https://via.placeholder.com/200x150?text=My+Game" alt="Game">
-                <div class="game-info">
-                    <h4>모험의 세계</h4>
-                    <p>플레이 클릭!</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- 3. 게임 창 화면 -->
-    <div id="game-screen" class="screen">
-        <button class="back-btn" onclick="goToHome()">나가기</button>
-        <div class="game-ui">
-            <h3>플레이 중: 모험의 세계</h3>
-            <p>방향키(WASD)로 움직이세요</p>
-        </div>
-        <canvas id="game-canvas" width="800" height="500"></canvas>
     </div>
 
     <script>
-        // 화면 전환 로직
-        function showScreen(screenId) {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById(screenId).classList.add('active');
-        }
+        let scene, camera, renderer, socket;
+        let myId, playerMesh;
+        let otherPlayers = {}; // 다른 플레이어들을 저장할 객체
+        const moveSpeed = 0.2;
+        const keys = {};
 
-        function goToHome() {
-            const user = document.getElementById('username').value || "Guest";
-            document.getElementById('user-display').innerText = user + "님 환영합니다";
-            showScreen('home-screen');
-            stopGame(); // 홈으로 오면 게임 중지
-        }
-
-        function goToGame() {
-            showScreen('game-screen');
-            startGame(); // 게임 화면으로 가면 게임 시작
-        }
-
-        // 간단한 2D 게임 로직
-        const canvas = document.getElementById('game-canvas');
-        const ctx = canvas.getContext('2d');
-        
-        let player = { x: 400, y: 250, size: 30, color: '#00ff00', speed: 5 };
-        let keys = {};
-        let gameInterval;
-
-        window.addEventListener('keydown', e => keys[e.key.toLowerCase()] = true);
-        window.addEventListener('keyup', e => keys[e.key.toLowerCase()] = false);
-
-        function startGame() {
-            gameInterval = setInterval(update, 1000/60); // 60fps
-        }
-
-        function stopGame() {
-            clearInterval(gameInterval);
-        }
-
-        function update() {
-            // 움직임 처리
-            if (keys['w'] || keys['arrowup']) player.y -= player.speed;
-            if (keys['s'] || keys['arrowdown']) player.y += player.speed;
-            if (keys['a'] || keys['arrowleft']) player.x -= player.speed;
-            if (keys['d'] || keys['arrowright']) player.x += player.speed;
-
-            // 캔버스 경계 제한
-            player.x = Math.max(0, Math.min(canvas.width - player.size, player.x));
-            player.y = Math.max(0, Math.min(canvas.height - player.size, player.y));
-
-            draw();
-        }
-
-        function draw() {
-            // 배경 그리기
-            ctx.fillStyle = "#222";
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            // 그리드(바닥) 그리기
-            ctx.strokeStyle = "#333";
-            for(let i=0; i<canvas.width; i+=40) {
-                ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i, canvas.height); ctx.stroke();
-            }
-            for(let i=0; i<canvas.height; i+=40) {
-                ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(canvas.width, i); ctx.stroke();
-            }
-
-            // 플레이어 그리기 (로블록스 아바타 대용 사각형)
-            ctx.fillStyle = player.color;
-            ctx.fillRect(player.x, player.y, player.size, player.size);
+        // 화면 전환 및 게임 참가
+        function joinGame() {
+            const name = document.getElementById('nickname').value;
+            if(!name) return alert("닉네임을 써주세요!");
             
-            // 이름표
-            ctx.fillStyle = "white";
-            ctx.font = "12px Arial";
-            ctx.fillText("Player", player.x, player.y - 5);
+            document.getElementById('display-name').innerText = name;
+            document.getElementById('login-screen').classList.remove('active');
+            document.getElementById('game-info').style.display = 'block';
+
+            init3D(); // 3D 세계 생성
+            initMultiplayer(name); // 서버 연결
+        }
+
+        // 3D 세계 초기화 (Three.js)
+        function init3D() {
+            scene = new THREE.Scene();
+            scene.background = new THREE.Color(0x87ceeb); // 하늘색
+
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            // 바닥 (격자무늬)
+            const grid = new THREE.GridHelper(100, 50);
+            scene.add(grid);
+
+            // 조명
+            const light = new THREE.AmbientLight(0xffffff, 0.7);
+            scene.add(light);
+            const dLight = new THREE.DirectionalLight(0xffffff, 0.5);
+            dLight.position.set(10, 20, 10);
+            scene.add(dLight);
+
+            // 내 캐릭터 (큐브)
+            const geometry = new THREE.BoxGeometry(1, 1, 1);
+            const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
+            playerMesh = new THREE.Mesh(geometry, material);
+            scene.add(playerMesh);
+
+            camera.position.set(0, 5, 10);
+            camera.lookAt(playerMesh.position);
+
+            window.addEventListener('keydown', (e) => keys[e.code] = true);
+            window.addEventListener('keyup', (e) => keys[e.code] = false);
+
+            animate();
+        }
+
+        // 멀티플레이어 연결 (Socket.io)
+        function initMultiplayer(name) {
+            // 주의: 실제 서버 주소로 바꿔야 함 (예: https://my-game-server.onrender.com)
+            socket = io("http://localhost:3000"); 
+
+            socket.emit('newPlayer', { name: name, x: 0, z: 0 });
+
+            socket.on('currentPlayers', (players) => {
+                Object.keys(players).forEach(id => {
+                    if (id !== socket.id) addOtherPlayer(id, players[id]);
+                });
+            });
+
+            socket.on('newPlayerJoined', (data) => {
+                addOtherPlayer(data.id, data);
+            });
+
+            socket.on('playerMoved', (data) => {
+                if (otherPlayers[data.id]) {
+                    otherPlayers[data.id].position.set(data.x, 0.5, data.z);
+                }
+            });
+
+            socket.on('playerDisconnected', (id) => {
+                scene.remove(otherPlayers[id]);
+                delete otherPlayers[id];
+            });
+        }
+
+        function addOtherPlayer(id, data) {
+            const geom = new THREE.BoxGeometry(1, 1, 1);
+            const mat = new THREE.MeshStandardMaterial({ color: 0xff0000 }); // 다른 사람은 빨간색
+            const mesh = new THREE.Mesh(geom, mat);
+            mesh.position.set(data.x, 0.5, data.z);
+            scene.add(mesh);
+            otherPlayers[id] = mesh;
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            // 이동 로직
+            let moved = false;
+            if (keys['KeyW']) { playerMesh.position.z -= moveSpeed; moved = true; }
+            if (keys['KeyS']) { playerMesh.position.z += moveSpeed; moved = true; }
+            if (keys['KeyA']) { playerMesh.position.x -= moveSpeed; moved = true; }
+            if (keys['KeyD']) { playerMesh.position.x += moveSpeed; moved = true; }
+
+            if (moved && socket) {
+                // 서버에 내 위치 전송
+                socket.emit('move', { x: playerMesh.position.x, z: playerMesh.position.z });
+            }
+
+            // 카메라가 캐릭터를 따라가게 함
+            camera.position.x = playerMesh.position.x;
+            camera.position.z = playerMesh.position.z + 10;
+            camera.lookAt(playerMesh.position);
+
+            renderer.render(scene, camera);
         }
     </script>
 </body>
