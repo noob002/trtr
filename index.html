@@ -2,202 +2,195 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>My Roblox Clone - Advanced</title>
+    <title>My Roblox Clone - Professional Controls</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Arial', sans-serif; overflow: hidden; background: #1a1a1a; color: white; }
-        .screen { display: none; width: 100%; height: 100%; position: absolute; flex-direction: column; align-items: center; justify-content: center; }
+        .screen { display: none; width: 100%; height: 100%; position: absolute; flex-direction: column; align-items: center; justify-content: center; z-index: 10; }
         .active { display: flex; }
 
         /* 홈 화면 */
-        #home-screen { background: #222; }
-        .btn { padding: 15px 40px; margin: 10px; font-size: 20px; cursor: pointer; border: none; border-radius: 5px; background: #00b0ff; color: white; transition: 0.3s; }
-        .btn:hover { background: #0081cb; transform: scale(1.1); }
-        .btn-shop { background: #ff9100; }
-
-        /* 상점 화면 */
-        #shop-screen { background: #333; }
-        .color-picker { display: flex; gap: 10px; margin-top: 20px; }
-        .color-dot { width: 50px; height: 50px; border-radius: 50%; cursor: pointer; border: 3px solid white; }
+        #home-screen { background: radial-gradient(circle, #2c3e50, #000); }
+        .btn { padding: 15px 40px; margin: 10px; font-size: 20px; cursor: pointer; border: none; border-radius: 5px; background: #00b0ff; color: white; transition: 0.2s; }
+        .btn:hover { background: #0081cb; transform: scale(1.05); }
 
         /* 채팅 UI */
-        #chat-container { position: absolute; bottom: 20px; left: 20px; width: 300px; height: 200px; background: rgba(0,0,0,0.5); display: none; flex-direction: column; border-radius: 5px; }
-        #chat-messages { flex: 1; overflow-y: auto; padding: 10px; font-size: 14px; }
-        #chat-input { background: rgba(255,255,255,0.2); border: none; padding: 10px; color: white; outline: none; }
+        #chat-container { 
+            position: absolute; bottom: 20px; left: 20px; width: 350px; height: 200px; 
+            background: rgba(0,0,0,0.6); display: none; flex-direction: column; 
+            border-radius: 8px; border: 1px solid rgba(255,255,255,0.2); pointer-events: all;
+        }
+        #chat-messages { flex: 1; overflow-y: auto; padding: 10px; font-size: 14px; color: #eee; }
+        #chat-input { background: rgba(255,255,255,0.1); border: none; padding: 12px; color: white; outline: none; border-top: 1px solid rgba(255,255,255,0.2); }
 
-        /* 게임 UI */
-        #game-ui { position: absolute; top: 20px; left: 20px; pointer-events: none; display: none; }
+        #game-ui { position: absolute; top: 20px; left: 20px; pointer-events: none; font-weight: bold; text-shadow: 2px 2px 4px black; }
     </style>
 </head>
-<body>
+<body oncontextmenu="return false;"> <!-- 우클릭 메뉴 방지 -->
 
-    <!-- 1. 로그인/홈 화면 -->
+    <!-- 홈 화면 -->
     <div id="home-screen" class="screen active">
-        <h1>MY ROBLOX WORLD</h1>
-        <div id="user-info">접속 중: <span id="user-name">Guest</span></div>
-        <button class="btn" onclick="goToScreen('game-screen'); startGame();">플레이</button>
-        <button class="btn btn-shop" onclick="goToScreen('shop-screen')">아바타 상점</button>
+        <h1>ROBLOX WEB CLONE</h1>
+        <button class="btn" onclick="startGame()">게임 플레이</button>
+        <p style="font-size: 14px; color: #aaa;">조작: WASD 이동 / 우클릭 드래그: 카메라 회전 / Enter: 채팅</p>
     </div>
 
-    <!-- 2. 상점 화면 -->
-    <div id="shop-screen" class="screen">
-        <h1>캐릭터 꾸미기</h1>
-        <div id="avatar-preview"></div> <!-- 3D 미리보기 영역 -->
-        <p>피부색 선택</p>
-        <div class="color-picker">
-            <div class="color-dot" style="background: #ffdbac;" onclick="changeColor('#ffdbac')"></div>
-            <div class="color-dot" style="background: #f1c27d;" onclick="changeColor('#f1c27d')"></div>
-            <div class="color-dot" style="background: #8d5524;" onclick="changeColor('#8d5524')"></div>
-            <div class="color-dot" style="background: #00ff00;" onclick="changeColor('#00ff00')"></div>
-        </div>
-        <button class="btn" onclick="goToScreen('home-screen')">저장 후 나가기</button>
-    </div>
-
-    <!-- 3. 게임 화면 -->
-    <div id="game-screen" class="screen">
-        <div id="game-ui">플레이 중... (WASD 이동)</div>
+    <!-- 게임 화면 레이어 -->
+    <div id="game-ui" style="display:none;">
+        <div>플레이 중...</div>
         <div id="chat-container">
             <div id="chat-messages"></div>
-            <input type="text" id="chat-input" placeholder="메시지 입력 후 엔터...">
+            <input type="text" id="chat-input" placeholder="메시지를 입력하세요...">
         </div>
-        <button class="btn" style="position:absolute; top:10px; right:10px;" onclick="location.reload()">나가기</button>
     </div>
 
     <script>
-        // --- 전역 설정 ---
-        let scene, camera, renderer, player, playerColor = "#ffdbac";
+        let scene, camera, renderer, player;
         let isGameRunning = false;
+        const keys = {};
 
-        // --- 화면 전환 ---
-        function goToScreen(id) {
-            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
-            document.getElementById(id).classList.add('active');
-            
-            if(id === 'game-screen') {
-                document.getElementById('chat-container').style.display = 'flex';
-                document.getElementById('game-ui').style.display = 'block';
-            }
-        }
+        // 카메라 회전 관련 변수
+        let isRightMouseDown = false;
+        let cameraAngleX = 0; // 좌우 회전
+        let cameraAngleY = 0.5; // 상하 회전
+        const cameraDistance = 10;
 
-        // --- 상점: 색상 변경 ---
-        function changeColor(color) {
-            playerColor = color;
-            alert("색상이 변경되었습니다!");
-        }
-
-        // --- 3D 캐릭터 모델 생성 함수 ---
-        function createHumanoid(color) {
-            const group = new THREE.Group();
-            
-            // 몸통
-            const body = new THREE.Mesh(new THREE.BoxGeometry(1, 1.2, 0.5), new THREE.MeshStandardMaterial({color: 0x3333ff}));
-            body.position.y = 1.1;
-            group.add(body);
-
-            // 머리
-            const head = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), new THREE.MeshStandardMaterial({color: color}));
-            head.position.y = 2.0;
-            group.add(head);
-
-            // 팔 (왼쪽, 오른쪽)
-            const armGeom = new THREE.BoxGeometry(0.4, 1.0, 0.4);
-            const lArm = new THREE.Mesh(armGeom, new THREE.MeshStandardMaterial({color: color}));
-            lArm.position.set(-0.75, 1.1, 0);
-            group.add(lArm);
-            
-            const rArm = new THREE.Mesh(armGeom, new THREE.MeshStandardMaterial({color: color}));
-            rArm.position.set(0.75, 1.1, 0);
-            group.add(rArm);
-
-            // 다리 (왼쪽, 오른쪽)
-            const legGeom = new THREE.BoxGeometry(0.45, 1.0, 0.45);
-            const lLeg = new THREE.Mesh(legGeom, new THREE.MeshStandardMaterial({color: 0x222222}));
-            lLeg.position.set(-0.25, 0.5, 0);
-            group.add(lLeg);
-
-            const rLeg = new THREE.Mesh(legGeom, new THREE.MeshStandardMaterial({color: 0x222222}));
-            rLeg.position.set(0.25, 0.5, 0);
-            group.add(rLeg);
-
-            return group;
-        }
-
-        // --- 게임 시작 (3D 맵 구성) ---
         function startGame() {
-            if (isGameRunning) return;
-            isGameRunning = true;
+            document.getElementById('home-screen').classList.remove('active');
+            document.getElementById('game-ui').style.display = 'block';
+            document.getElementById('chat-container').style.display = 'flex';
+            
+            init3D();
+        }
 
+        function init3D() {
             scene = new THREE.Scene();
-            scene.background = new THREE.Color(0x87ceeb); // 하늘색
+            scene.background = new THREE.Color(0x87ceeb);
 
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            document.getElementById('game-screen').appendChild(renderer.domElement);
+            document.body.appendChild(renderer.domElement);
 
-            // 1. 실제 맵 만들기 (바닥 + 나무)
-            const ground = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshStandardMaterial({color: 0x2d5e1e}));
+            // 바닥 및 환경
+            const ground = new THREE.Mesh(new THREE.PlaneGeometry(200, 200), new THREE.MeshStandardMaterial({color: 0x3a7d2c}));
             ground.rotation.x = -Math.PI / 2;
             scene.add(ground);
 
-            // 간단한 나무들 추가
-            for(let i=0; i<20; i++) {
-                const tree = new THREE.Group();
+            const grid = new THREE.GridHelper(200, 100, 0x000000, 0x444444);
+            grid.position.y = 0.01;
+            scene.add(grid);
+
+            // 나무 장식
+            for(let i=0; i<30; i++) {
                 const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1), new THREE.MeshStandardMaterial({color: 0x8b4513}));
-                const leaves = new THREE.Mesh(new THREE.ConeGeometry(1, 2, 8), new THREE.MeshStandardMaterial({color: 0x00ff00}));
+                const leaves = new THREE.Mesh(new THREE.ConeGeometry(1, 2, 8), new THREE.MeshStandardMaterial({color: 0x228b22}));
                 leaves.position.y = 1.5;
+                const tree = new THREE.Group();
                 tree.add(trunk, leaves);
-                tree.position.set(Math.random()*40-20, 0.5, Math.random()*40-20);
+                tree.position.set(Math.random()*80-40, 0.5, Math.random()*80-40);
                 scene.add(tree);
             }
 
-            // 2. 캐릭터 추가 (상점에서 고른 색 적용)
-            player = createHumanoid(playerColor);
+            // 캐릭터 생성 (로블록스 스타일)
+            player = createPlayer();
             scene.add(player);
 
             // 조명
             const light = new THREE.DirectionalLight(0xffffff, 1);
-            light.position.set(5, 10, 7);
-            scene.add(light, new THREE.AmbientLight(0x404040));
+            light.position.set(10, 20, 10);
+            scene.add(light, new THREE.AmbientLight(0x606060));
 
-            camera.position.set(0, 5, 10);
+            // 이벤트 리스너
+            window.addEventListener('keydown', (e) => keys[e.code] = true);
+            window.addEventListener('keyup', (e) => keys[e.code] = false);
             
+            // 마우스 우클릭 회전 이벤트
+            window.addEventListener('mousedown', (e) => { if(e.button === 2) isRightMouseDown = true; });
+            window.addEventListener('mouseup', (e) => { if(e.button === 2) isRightMouseDown = false; });
+            window.addEventListener('mousemove', (e) => {
+                if (isRightMouseDown) {
+                    cameraAngleX -= e.movementX * 0.005; // 마우스 이동량에 따라 회전
+                    cameraAngleY += e.movementY * 0.005;
+                    cameraAngleY = Math.max(0.1, Math.min(Math.PI / 2.1, cameraAngleY)); // 바닥 아래로 못 내려가게 제한
+                }
+            });
+
             animate();
         }
 
-        // --- 채팅 시스템 ---
-        const chatInput = document.getElementById('chat-input');
-        const chatMessages = document.getElementById('chat-messages');
+        function createPlayer() {
+            const group = new THREE.Group();
+            const mat = new THREE.MeshStandardMaterial({color: 0xffdbac}); // 피부색
+            const clothes = new THREE.MeshStandardMaterial({color: 0x00b0ff}); // 옷색
 
-        chatInput.addEventListener('keypress', (e) => {
-            if(e.key === 'Enter' && chatInput.value) {
-                const msg = document.createElement('div');
-                msg.innerText = "나: " + chatInput.value;
-                chatMessages.appendChild(msg);
-                chatMessages.scrollTop = chatMessages.scrollHeight;
-                // 여기서 socket.emit('chat', chatInput.value) 로 서버 전송 가능
-                chatInput.value = "";
-            }
-        });
+            const body = new THREE.Mesh(new THREE.BoxGeometry(1, 1.2, 0.5), clothes);
+            body.position.y = 1.1;
+            
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), mat);
+            head.position.y = 2.0;
 
-        // --- 애니메이션 & 조작 ---
-        const keys = {};
-        window.addEventListener('keydown', (e) => keys[e.code] = true);
-        window.addEventListener('keyup', (e) => keys[e.code] = false);
+            group.add(body, head);
+            return group;
+        }
+
+        // 채팅창 포커스 확인 함수
+        function isChatting() {
+            return document.activeElement === document.getElementById('chat-input');
+        }
 
         function animate() {
             requestAnimationFrame(animate);
-            
-            if(keys['KeyW']) player.position.z -= 0.1;
-            if(keys['KeyS']) player.position.z += 0.1;
-            if(keys['KeyA']) player.position.x -= 0.1;
-            if(keys['KeyD']) player.position.x += 0.1;
 
-            camera.position.set(player.position.x, player.position.y + 5, player.position.z + 10);
-            camera.lookAt(player.position);
+            // 1. 이동 로직 (채팅 중이 아닐 때만 작동)
+            if (!isChatting()) {
+                const moveSpeed = 0.15;
+                // 카메라 방향에 맞춰 이동하기 위해 계산
+                const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), cameraAngleX));
+                const right = new THREE.Vector3(1, 0, 0).applyQuaternion(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), cameraAngleX));
+
+                if (keys['KeyW']) player.position.add(forward.multiplyScalar(moveSpeed));
+                if (keys['KeyS']) player.position.sub(forward.multiplyScalar(moveSpeed));
+                if (keys['KeyA']) player.position.sub(right.multiplyScalar(moveSpeed));
+                if (keys['KeyD']) player.position.add(right.multiplyScalar(moveSpeed));
+            }
+
+            // 2. 카메라 위치 업데이트 (캐릭터 주위를 회전)
+            const offsetX = Math.sin(cameraAngleX) * Math.cos(cameraAngleY) * cameraDistance;
+            const offsetY = Math.sin(cameraAngleY) * cameraDistance;
+            const offsetZ = Math.cos(cameraAngleX) * Math.cos(cameraAngleY) * cameraDistance;
+
+            camera.position.set(
+                player.position.x + offsetX,
+                player.position.y + offsetY,
+                player.position.z + offsetZ
+            );
+            camera.lookAt(player.position.x, player.position.y + 1, player.position.z);
 
             renderer.render(scene, camera);
         }
+
+        // 채팅 입력 처리
+        const chatInput = document.getElementById('chat-input');
+        chatInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                if (chatInput.value.trim() !== "") {
+                    const msg = document.createElement('div');
+                    msg.innerHTML = `<b>나:</b> ${chatInput.value}`;
+                    document.getElementById('chat-messages').appendChild(msg);
+                    document.getElementById('chat-messages').scrollTop = document.getElementById('chat-messages').scrollHeight;
+                    chatInput.value = "";
+                }
+                chatInput.blur(); // 엔터 치면 포커스 해제 (다시 움직일 수 있게 함)
+            }
+        });
+
+        // 엔터 키로 채팅창 바로 포커스
+        window.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' && !isChatting()) {
+                chatInput.focus();
+            }
+        });
     </script>
 </body>
 </html>
