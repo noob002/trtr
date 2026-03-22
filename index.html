@@ -2,174 +2,201 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>My 3D Online World</title>
+    <title>My Roblox Clone - Advanced</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js"></script>
     <style>
-        body { margin: 0; overflow: hidden; font-family: sans-serif; background: #000; }
-        #ui-layer { position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; }
-        .screen { pointer-events: all; display: none; flex-direction: column; align-items: center; justify-content: center; width: 100%; height: 100%; background: rgba(0,0,0,0.8); color: white; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Arial', sans-serif; overflow: hidden; background: #1a1a1a; color: white; }
+        .screen { display: none; width: 100%; height: 100%; position: absolute; flex-direction: column; align-items: center; justify-content: center; }
         .active { display: flex; }
-        input, button { margin: 10px; padding: 10px; font-size: 1.2rem; }
-        #game-info { position: absolute; top: 10px; left: 10px; color: white; pointer-events: none; }
+
+        /* 홈 화면 */
+        #home-screen { background: #222; }
+        .btn { padding: 15px 40px; margin: 10px; font-size: 20px; cursor: pointer; border: none; border-radius: 5px; background: #00b0ff; color: white; transition: 0.3s; }
+        .btn:hover { background: #0081cb; transform: scale(1.1); }
+        .btn-shop { background: #ff9100; }
+
+        /* 상점 화면 */
+        #shop-screen { background: #333; }
+        .color-picker { display: flex; gap: 10px; margin-top: 20px; }
+        .color-dot { width: 50px; height: 50px; border-radius: 50%; cursor: pointer; border: 3px solid white; }
+
+        /* 채팅 UI */
+        #chat-container { position: absolute; bottom: 20px; left: 20px; width: 300px; height: 200px; background: rgba(0,0,0,0.5); display: none; flex-direction: column; border-radius: 5px; }
+        #chat-messages { flex: 1; overflow-y: auto; padding: 10px; font-size: 14px; }
+        #chat-input { background: rgba(255,255,255,0.2); border: none; padding: 10px; color: white; outline: none; }
+
+        /* 게임 UI */
+        #game-ui { position: absolute; top: 20px; left: 20px; pointer-events: none; display: none; }
     </style>
 </head>
 <body>
 
-    <!-- 1. 로그인 화면 -->
-    <div id="login-screen" class="screen active">
-        <h1>ROBLOX CLONE 3D</h1>
-        <input type="text" id="nickname" placeholder="닉네임 입력">
-        <button onclick="joinGame()">게임 시작</button>
+    <!-- 1. 로그인/홈 화면 -->
+    <div id="home-screen" class="screen active">
+        <h1>MY ROBLOX WORLD</h1>
+        <div id="user-info">접속 중: <span id="user-name">Guest</span></div>
+        <button class="btn" onclick="goToScreen('game-screen'); startGame();">플레이</button>
+        <button class="btn btn-shop" onclick="goToScreen('shop-screen')">아바타 상점</button>
     </div>
 
-    <!-- 2. 게임 화면 UI -->
-    <div id="ui-layer">
-        <div id="game-info" style="display:none;">
-            <p>접속 중: <span id="display-name"></span></p>
-            <p>WASD로 이동 / 다른 플레이어를 찾아보세요!</p>
+    <!-- 2. 상점 화면 -->
+    <div id="shop-screen" class="screen">
+        <h1>캐릭터 꾸미기</h1>
+        <div id="avatar-preview"></div> <!-- 3D 미리보기 영역 -->
+        <p>피부색 선택</p>
+        <div class="color-picker">
+            <div class="color-dot" style="background: #ffdbac;" onclick="changeColor('#ffdbac')"></div>
+            <div class="color-dot" style="background: #f1c27d;" onclick="changeColor('#f1c27d')"></div>
+            <div class="color-dot" style="background: #8d5524;" onclick="changeColor('#8d5524')"></div>
+            <div class="color-dot" style="background: #00ff00;" onclick="changeColor('#00ff00')"></div>
         </div>
+        <button class="btn" onclick="goToScreen('home-screen')">저장 후 나가기</button>
+    </div>
+
+    <!-- 3. 게임 화면 -->
+    <div id="game-screen" class="screen">
+        <div id="game-ui">플레이 중... (WASD 이동)</div>
+        <div id="chat-container">
+            <div id="chat-messages"></div>
+            <input type="text" id="chat-input" placeholder="메시지 입력 후 엔터...">
+        </div>
+        <button class="btn" style="position:absolute; top:10px; right:10px;" onclick="location.reload()">나가기</button>
     </div>
 
     <script>
-        let scene, camera, renderer, socket;
-        let myId, playerMesh;
-        let otherPlayers = {}; // 다른 플레이어들을 저장할 객체
-        const moveSpeed = 0.2;
-        const keys = {};
+        // --- 전역 설정 ---
+        let scene, camera, renderer, player, playerColor = "#ffdbac";
+        let isGameRunning = false;
 
-        // 화면 전환 및 게임 참가
-        function joinGame() {
-            const name = document.getElementById('nickname').value;
-            if(!name) return alert("닉네임을 써주세요!");
+        // --- 화면 전환 ---
+        function goToScreen(id) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(id).classList.add('active');
             
-            document.getElementById('display-name').innerText = name;
-            document.getElementById('login-screen').classList.remove('active');
-            document.getElementById('game-info').style.display = 'block';
-
-            init3D(); // 3D 세계 생성
-            initMultiplayer(name); // 서버 연결
+            if(id === 'game-screen') {
+                document.getElementById('chat-container').style.display = 'flex';
+                document.getElementById('game-ui').style.display = 'block';
+            }
         }
 
-        // 3D 세계 초기화 (Three.js)
-        function init3D() {
+        // --- 상점: 색상 변경 ---
+        function changeColor(color) {
+            playerColor = color;
+            alert("색상이 변경되었습니다!");
+        }
+
+        // --- 3D 캐릭터 모델 생성 함수 ---
+        function createHumanoid(color) {
+            const group = new THREE.Group();
+            
+            // 몸통
+            const body = new THREE.Mesh(new THREE.BoxGeometry(1, 1.2, 0.5), new THREE.MeshStandardMaterial({color: 0x3333ff}));
+            body.position.y = 1.1;
+            group.add(body);
+
+            // 머리
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), new THREE.MeshStandardMaterial({color: color}));
+            head.position.y = 2.0;
+            group.add(head);
+
+            // 팔 (왼쪽, 오른쪽)
+            const armGeom = new THREE.BoxGeometry(0.4, 1.0, 0.4);
+            const lArm = new THREE.Mesh(armGeom, new THREE.MeshStandardMaterial({color: color}));
+            lArm.position.set(-0.75, 1.1, 0);
+            group.add(lArm);
+            
+            const rArm = new THREE.Mesh(armGeom, new THREE.MeshStandardMaterial({color: color}));
+            rArm.position.set(0.75, 1.1, 0);
+            group.add(rArm);
+
+            // 다리 (왼쪽, 오른쪽)
+            const legGeom = new THREE.BoxGeometry(0.45, 1.0, 0.45);
+            const lLeg = new THREE.Mesh(legGeom, new THREE.MeshStandardMaterial({color: 0x222222}));
+            lLeg.position.set(-0.25, 0.5, 0);
+            group.add(lLeg);
+
+            const rLeg = new THREE.Mesh(legGeom, new THREE.MeshStandardMaterial({color: 0x222222}));
+            rLeg.position.set(0.25, 0.5, 0);
+            group.add(rLeg);
+
+            return group;
+        }
+
+        // --- 게임 시작 (3D 맵 구성) ---
+        function startGame() {
+            if (isGameRunning) return;
+            isGameRunning = true;
+
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x87ceeb); // 하늘색
 
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
-            document.body.appendChild(renderer.domElement);
+            document.getElementById('game-screen').appendChild(renderer.domElement);
 
-            // 바닥 (격자무늬)
-            const grid = new THREE.GridHelper(100, 50);
-            scene.add(grid);
+            // 1. 실제 맵 만들기 (바닥 + 나무)
+            const ground = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshStandardMaterial({color: 0x2d5e1e}));
+            ground.rotation.x = -Math.PI / 2;
+            scene.add(ground);
+
+            // 간단한 나무들 추가
+            for(let i=0; i<20; i++) {
+                const tree = new THREE.Group();
+                const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.2, 0.2, 1), new THREE.MeshStandardMaterial({color: 0x8b4513}));
+                const leaves = new THREE.Mesh(new THREE.ConeGeometry(1, 2, 8), new THREE.MeshStandardMaterial({color: 0x00ff00}));
+                leaves.position.y = 1.5;
+                tree.add(trunk, leaves);
+                tree.position.set(Math.random()*40-20, 0.5, Math.random()*40-20);
+                scene.add(tree);
+            }
+
+            // 2. 캐릭터 추가 (상점에서 고른 색 적용)
+            player = createHumanoid(playerColor);
+            scene.add(player);
 
             // 조명
-            const light = new THREE.AmbientLight(0xffffff, 0.7);
-            scene.add(light);
-            const dLight = new THREE.DirectionalLight(0xffffff, 0.5);
-            dLight.position.set(10, 20, 10);
-            scene.add(dLight);
-
-            // 내 캐릭터 (큐브)
-            const geometry = new THREE.BoxGeometry(1, 1, 1);
-            const material = new THREE.MeshStandardMaterial({ color: 0x00ff00 });
-            playerMesh = new THREE.Mesh(geometry, material);
-            scene.add(playerMesh);
+            const light = new THREE.DirectionalLight(0xffffff, 1);
+            light.position.set(5, 10, 7);
+            scene.add(light, new THREE.AmbientLight(0x404040));
 
             camera.position.set(0, 5, 10);
-            camera.lookAt(playerMesh.position);
-
-            window.addEventListener('keydown', (e) => keys[e.code] = true);
-            window.addEventListener('keyup', (e) => keys[e.code] = false);
-
+            
             animate();
         }
 
-        // 멀티플레이어 연결 (Socket.io)
-        function initMultiplayer(name) {
-            // 주의: 실제 서버 주소로 바꿔야 함 (예: https://my-game-server.onrender.com)
-            socket = io("http://localhost:3000"); 
+        // --- 채팅 시스템 ---
+        const chatInput = document.getElementById('chat-input');
+        const chatMessages = document.getElementById('chat-messages');
 
-            socket.emit('newPlayer', { name: name, x: 0, z: 0 });
+        chatInput.addEventListener('keypress', (e) => {
+            if(e.key === 'Enter' && chatInput.value) {
+                const msg = document.createElement('div');
+                msg.innerText = "나: " + chatInput.value;
+                chatMessages.appendChild(msg);
+                chatMessages.scrollTop = chatMessages.scrollHeight;
+                // 여기서 socket.emit('chat', chatInput.value) 로 서버 전송 가능
+                chatInput.value = "";
+            }
+        });
 
-            socket.on('currentPlayers', (players) => {
-                Object.keys(players).forEach(id => {
-                    if (id !== socket.id) addOtherPlayer(id, players[id]);
-                });
-            });
-
-            socket.on('newPlayerJoined', (data) => {
-                addOtherPlayer(data.id, data);
-            });
-
-            socket.on('playerMoved', (data) => {
-                if (otherPlayers[data.id]) {
-                    otherPlayers[data.id].position.set(data.x, 0.5, data.z);
-                }
-            });
-
-            socket.on('playerDisconnected', (id) => {
-                scene.remove(otherPlayers[id]);
-                delete otherPlayers[id];
-            });
-        }
-
-        function addOtherPlayer(id, data) {
-            const geom = new THREE.BoxGeometry(1, 1, 1);
-            const mat = new THREE.MeshStandardMaterial({ color: 0xff0000 }); // 다른 사람은 빨간색
-            const mesh = new THREE.Mesh(geom, mat);
-            mesh.position.set(data.x, 0.5, data.z);
-            scene.add(mesh);
-            otherPlayers[id] = mesh;
-        }
+        // --- 애니메이션 & 조작 ---
+        const keys = {};
+        window.addEventListener('keydown', (e) => keys[e.code] = true);
+        window.addEventListener('keyup', (e) => keys[e.code] = false);
 
         function animate() {
             requestAnimationFrame(animate);
+            
+            if(keys['KeyW']) player.position.z -= 0.1;
+            if(keys['KeyS']) player.position.z += 0.1;
+            if(keys['KeyA']) player.position.x -= 0.1;
+            if(keys['KeyD']) player.position.x += 0.1;
 
-            // 이동 로직
-            let moved = false;
-            if (keys['KeyW']) { playerMesh.position.z -= moveSpeed; moved = true; }
-            if (keys['KeyS']) { playerMesh.position.z += moveSpeed; moved = true; }
-            if (keys['KeyA']) { playerMesh.position.x -= moveSpeed; moved = true; }
-            if (keys['KeyD']) { playerMesh.position.x += moveSpeed; moved = true; }
-
-            if (moved && socket) {
-                // 서버에 내 위치 전송
-                socket.emit('move', { x: playerMesh.position.x, z: playerMesh.position.z });
-            }
-
-            // 카메라가 캐릭터를 따라가게 함
-            camera.position.x = playerMesh.position.x;
-            camera.position.z = playerMesh.position.z + 10;
-            camera.lookAt(playerMesh.position);
+            camera.position.set(player.position.x, player.position.y + 5, player.position.z + 10);
+            camera.lookAt(player.position);
 
             renderer.render(scene, camera);
-        // Firebase SDK 추가 (Head 태그 내)
-import { initializeApp } from "https://www.gstatic.com/firebasejs/9.1.3/firebase-app.js";
-import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.1.3/firebase-auth.js";
-import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/9.1.3/firebase-firestore.js";
-
-// Firebase 설정 (본인의 Firebase 콘솔에서 복사)
-const firebaseConfig = {
-  apiKey: "YOUR_API_KEY",
-  authDomain: "login.firebaseapp.com",
-  projectId: "login-e6b02",
-  // ...
-};
-
-const app = initializeApp(firebaseConfig);
-const db = getFirestore(app);
-
-// 유저 데이터 저장 예시
-async function saveUserData(uid, name) {
-  await setDoc(doc(db, "users", uid), {
-    nickname: name,
-    lastLogin: new Date()
-  });
-}
-        
         }
     </script>
 </body>
