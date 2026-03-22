@@ -2,208 +2,197 @@
 <html lang="ko">
 <head>
     <meta charset="UTF-8">
-    <title>Roblox Web Clone Beta</title>
+    <title>Block world</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <style>
         :root {
-            --bg-color: #111111;
-            --sidebar-color: #191919;
-            --topbar-color: #252525;
-            --text-main: #ffffff;
-            --text-sub: #b8b8b8;
-            --accent: #00b0ff;
+            --bg-color: #111; --sidebar-color: #191919; --topbar-color: #252525;
+            --text-main: #fff; --text-sub: #b8b8b8; --accent: #00b0ff;
         }
-
-        body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: 'Pretendard', sans-serif; background: var(--bg-color); color: var(--text-main); overflow: hidden; }
-
-        /* 전체 레이아웃 */
-        .app-container { display: flex; width: 100%; height: 100%; }
-
-        /* 1. 좌측 사이드바 */
-        .sidebar {
-            width: 180px; height: 100%; background: var(--sidebar-color);
-            display: flex; flex-direction: column; padding: 20px 10px; border-right: 1px solid #333;
-        }
-        .sidebar-item {
-            padding: 12px; margin-bottom: 5px; cursor: pointer; border-radius: 8px;
-            font-size: 14px; display: flex; align-items: center; color: var(--text-sub);
-        }
-        .sidebar-item:hover { background: #333; color: white; }
-        .sidebar-item.active { background: #333; color: white; font-weight: bold; }
-
-        /* 2. 상단 바 */
-        .top-nav {
-            position: absolute; top: 0; left: 180px; right: 0; height: 60px;
-            background: var(--topbar-color); display: flex; align-items: center;
-            padding: 0 20px; z-index: 100;
-        }
-        .search-bar {
-            background: #333; border: 1px solid #444; color: white;
-            padding: 8px 15px; border-radius: 5px; width: 300px; margin-left: 20px;
-        }
-
-        /* 3. 메인 콘텐츠 (홈) */
-        .main-content {
-            flex: 1; margin-top: 60px; padding: 30px; overflow-y: auto;
-            display: block; /* 기본적으로 보임 */
-        }
-        .section-title { font-size: 24px; font-weight: bold; margin-bottom: 20px; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: sans-serif; background: var(--bg-color); color: var(--text-main); overflow: hidden; }
         
-        /* 인맥(친구) 섹션 */
-        .friends-list { display: flex; gap: 20px; margin-bottom: 40px; }
-        .friend-circle { text-align: center; cursor: pointer; }
-        .friend-img { width: 70px; height: 70px; background: #333; border-radius: 50%; margin-bottom: 8px; border: 2px solid #555; }
+        /* 레이아웃 */
+        .app-container { display: flex; width: 100%; height: 100%; }
+        .sidebar { width: 180px; background: var(--sidebar-color); padding: 20px 10px; border-right: 1px solid #333; z-index: 10; }
+        .sidebar-item { padding: 12px; cursor: pointer; border-radius: 8px; color: var(--text-sub); margin-bottom: 5px; }
+        .sidebar-item:hover, .sidebar-item.active { background: #333; color: white; }
 
-        /* 게임 리스트 */
-        .game-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
-        .game-card {
-            background: #252525; border-radius: 10px; overflow: hidden; cursor: pointer;
-            transition: transform 0.2s; border: 1px solid #333;
+        .top-nav { position: absolute; top: 0; left: 180px; right: 0; height: 60px; background: var(--topbar-color); display: flex; align-items: center; padding: 0 20px; z-index: 5; }
+        .nav-btn { margin-right: 20px; cursor: pointer; color: var(--text-sub); font-weight: bold; }
+        .nav-btn.active { color: white; border-bottom: 2px solid white; }
+
+        .main-view { flex: 1; margin-top: 60px; padding: 30px; overflow-y: auto; display: none; }
+        .view-active { display: block; }
+
+        /* 친구 섹션 */
+        .friends-container { display: flex; gap: 15px; min-height: 80px; align-items: center; color: #666; font-style: italic; }
+
+        /* 게임 카드 */
+        .game-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; margin-top: 20px; }
+        .game-card { background: #252525; border-radius: 10px; overflow: hidden; cursor: pointer; border: 1px solid #333; }
+        .game-card:hover { border-color: var(--accent); }
+        .game-card-img { width: 100%; height: 120px; background: #444; }
+
+        /* 아바타 상점 */
+        .shop-item { width: 120px; height: 150px; background: #333; border-radius: 5px; display: inline-block; margin: 10px; padding: 10px; text-align: center; cursor: pointer; }
+        .shop-item:hover { background: #444; }
+
+        /* 게임 레이어 */
+        #game-view { display: none; width: 100%; height: 100%; position: absolute; top: 0; left: 0; z-index: 100; }
+        
+        /* ESC 메뉴 */
+        #esc-menu {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.8); display: none; flex-direction: column;
+            align-items: center; justify-content: center; z-index: 1000;
         }
-        .game-card:hover { transform: translateY(-5px); border-color: var(--accent); }
-        .game-card-img { width: 100%; height: 120px; background: linear-gradient(45deg, #444, #222); }
-        .game-card-info { padding: 12px; }
-        .game-title { font-weight: bold; font-size: 15px; margin-bottom: 5px; }
-        .game-desc { font-size: 12px; color: var(--text-sub); }
+        .menu-box { background: #252525; padding: 40px; border-radius: 15px; text-align: center; width: 300px; }
+        .menu-btn { width: 100%; padding: 15px; margin: 10px 0; border-radius: 5px; border: none; font-weight: bold; cursor: pointer; }
+        .resume-btn { background: var(--accent); color: white; }
+        .leave-btn { background: #555; color: white; }
 
-        /* 4. 게임 화면 (숨겨져 있음) */
-        #game-view { display: none; width: 100%; height: 100%; position: relative; }
-        #chat-container {
-            position: absolute; bottom: 20px; left: 20px; width: 300px; height: 180px;
-            background: rgba(0,0,0,0.7); display: flex; flex-direction: column; border-radius: 5px;
-        }
-        #chat-messages { flex: 1; overflow-y: auto; padding: 10px; font-size: 13px; }
-        #chat-input { background: rgba(255,255,255,0.1); border: none; padding: 10px; color: white; outline: none; }
-
-        /* 뒤로가기 버튼 */
-        .exit-btn { position: absolute; top: 20px; right: 20px; background: red; padding: 10px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        #chat-ui { position: absolute; bottom: 20px; left: 20px; width: 300px; background: rgba(0,0,0,0.5); border-radius: 5px; }
     </style>
 </head>
 <body oncontextmenu="return false;">
 
-    <div class="app-container" id="app-ui">
-        <!-- 사이드바 -->
+    <div class="app-container" id="lobby-ui">
         <div class="sidebar">
-            <div style="font-size: 20px; font-weight: bold; margin-bottom: 30px; color: #fff;">ROBLOX</div>
-            <div class="sidebar-item active">🏠 홈</div>
-            <div class="sidebar-item">👤 프로필</div>
-            <div class="sidebar-item">✉️ 메시지</div>
-            <div class="sidebar-item">아바타</div>
-            <div class="sidebar-item">인벤토리</div>
-            <div class="sidebar-item">만들기</div>
+            <div style="font-size: 20px; font-weight: bold; margin-bottom: 30px;">Block world</div>
+            <div class="sidebar-item active" onclick="showView('home-view')">🏠 홈</div>
+            <div class="sidebar-item" onclick="showView('shop-view')">👕 아바타</div>
         </div>
 
-        <!-- 상단 내비게이션 -->
         <div class="top-nav">
-            <div style="font-weight: bold; cursor: pointer;">Home</div>
-            <div style="margin-left: 20px; color: #ccc;">차트</div>
-            <div style="margin-left: 20px; color: #ccc;">마켓플레이스</div>
-            <input type="text" class="search-bar" placeholder="검색">
-            <div style="margin-left: auto; display: flex; align-items: center; gap: 15px;">
-                🔔 💬 💰 803 ⚙️
+            <div class="nav-btn active" onclick="showView('home-view')">Home</div>
+            <div class="nav-btn" onclick="showView('shop-view')">마켓플레이스</div>
+            <div style="margin-left: auto;">💰 803 ⚙️</div>
+        </div>
+
+        <!-- 홈 화면 -->
+        <div id="home-view" class="main-view view-active">
+            <h2>친구</h2>
+            <div class="friends-container" id="friends-list">
+                아직 친구가 없습니다. 게임에서 친구를 찾아보세요!
+            </div>
+
+            <h2>주목할 게임</h2>
+            <div class="game-grid">
+                <div class="game-card" onclick="launchGame()">
+                    <div class="game-card-img" style="background: linear-gradient(to bottom, #1e3c72, #2a5298); display: flex; align-items: center; justify-content: center;">Play</div>
+                    <div style="padding: 10px;"><b>베타 테스트 월드</b><br><span style="font-size:12px; color:#aaa;">모험을 시작하세요</span></div>
+                </div>
             </div>
         </div>
 
-        <!-- 메인 홈 콘텐츠 -->
-        <div class="main-content" id="home-view">
-            <div class="section-title">홈</div>
-            
-            <div style="font-size: 18px; margin-bottom: 15px;">인맥 (3)</div>
-            <div class="friends-list">
-                <div class="friend-circle"><div class="friend-img"></div><div>shark</div></div>
-                <div class="friend-circle"><div class="friend-img"></div><div>smug_kat</div></div>
-                <div class="friend-circle"><div class="friend-img"></div><div>bigmanpoo</div></div>
-            </div>
-
-            <div class="section-title">주목할 게임: 나만의 세계 건설</div>
-            <div class="game-grid">
-                <!-- 게임 클릭 시 게임 시작 -->
-                <div class="game-card" onclick="launchGame('드라이빙 엠파이어')">
-                    <div class="game-card-img" style="background: url('https://via.placeholder.com/200x120/1a1a1a/00b0ff?text=Driving+Empire') center/cover;"></div>
-                    <div class="game-card-info">
-                        <div class="game-title">드라이빙 엠파이어</div>
-                        <div class="game-desc">더 빠르게 질주하세요</div>
-                    </div>
-                </div>
-                <div class="game-card" onclick="launchGame('드래곤 어드벤처')">
-                    <div class="game-card-img" style="background: url('https://via.placeholder.com/200x120/1a1a1a/ff9100?text=Dragon+Adventure') center/cover;"></div>
-                    <div class="game-card-info">
-                        <div class="game-title">드래곤 어드벤처</div>
-                        <div class="game-desc">나만의 용을 길들이세요</div>
-                    </div>
-                </div>
-                <div class="game-card" onclick="launchGame('세계 // 제로')">
-                    <div class="game-card-img" style="background: url('https://via.placeholder.com/200x120/1a1a1a/9c27b0?text=World+Zero') center/cover;"></div>
-                    <div class="game-card-info">
-                        <div class="game-title">세계 // 제로</div>
-                        <div class="game-desc">끝없는 모험</div>
-                    </div>
-                </div>
-            </div>
+        <!-- 아바타 상점 (마켓플레이스) -->
+        <div id="shop-view" class="main-view">
+            <h2>아바타 상점</h2>
+            <div class="shop-item">모자 (준비중)</div>
+            <div class="shop-item">셔츠 (준비중)</div>
+            <div class="shop-item">바지 (준비중)</div>
         </div>
     </div>
 
-    <!-- 실제 3D 게임 창 -->
+    <!-- 3D 게임 창 -->
     <div id="game-view">
-        <div class="exit-btn" onclick="exitGame()">나가기</div>
-        <div id="chat-container">
-            <div id="chat-messages"></div>
-            <input type="text" id="chat-input" placeholder="메시지를 입력하세요...">
+        <!-- ESC 메뉴 -->
+        <div id="esc-menu">
+            <div class="menu-box">
+                <h2 style="margin-top:0;">일시 중지</h2>
+                <button class="menu-btn resume-btn" onclick="toggleEscMenu()">계속하기</button>
+                <button class="menu-btn leave-btn" onclick="exitGame()">나가기</button>
+            </div>
+        </div>
+        <!-- 채팅 UI -->
+        <div id="chat-ui">
+            <div id="chat-msgs" style="height:150px; overflow-y:auto; padding:10px; font-size:13px;"></div>
+            <input type="text" id="chat-input" placeholder="채팅하려면 Enter..." style="width:100%; background:none; border:none; border-top:1px solid #444; color:white; padding:10px; box-sizing:border-box;">
         </div>
     </div>
 
     <script>
-        let scene, camera, renderer, player;
-        let isRightMouseDown = false;
-        let cameraAngleX = 0, cameraAngleY = 0.5, cameraDistance = 10;
+        let scene, camera, renderer, player, clock;
+        let limbs = {}; // 팔다리 참조용
+        let isRightMouseDown = false, cameraAngleX = 0, cameraAngleY = 0.5, cameraDistance = 12;
         const keys = {};
 
-        // 1. 게임 실행 함수
-        function launchGame(title) {
-            document.getElementById('app-ui').style.display = 'none';
-            document.getElementById('game-view').style.display = 'block';
-            init3D();
+        // 물리 변수
+        let pyVelocity = 0;
+        let isJumping = false;
+        const gravity = 0.015;
+
+        function showView(id) {
+            document.querySelectorAll('.main-view').forEach(v => v.classList.remove('view-active'));
+            document.getElementById(id).classList.add('view-active');
+            document.querySelectorAll('.nav-btn, .sidebar-item').forEach(b => b.classList.remove('active'));
         }
 
-        // 2. 게임 종료 (홈으로)
-        function exitGame() {
-            location.reload(); // 간단하게 초기화
+        function launchGame() {
+            document.getElementById('lobby-ui').style.display = 'none';
+            document.getElementById('game-view').style.display = 'block';
+            if(!scene) init3D();
         }
+
+        function toggleEscMenu() {
+            const menu = document.getElementById('esc-menu');
+            menu.style.display = (menu.style.display === 'flex') ? 'none' : 'flex';
+        }
+
+        function exitGame() { location.reload(); }
 
         function init3D() {
             scene = new THREE.Scene();
             scene.background = new THREE.Color(0x87ceeb);
+            clock = new THREE.Clock();
 
             camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
             renderer = new THREE.WebGLRenderer({ antialias: true });
             renderer.setSize(window.innerWidth, window.innerHeight);
             document.getElementById('game-view').appendChild(renderer.domElement);
 
-            // 환경 구성
-            const ground = new THREE.Mesh(new THREE.PlaneGeometry(100, 100), new THREE.MeshStandardMaterial({color: 0x3a7d2c}));
-            ground.rotation.x = -Math.PI / 2;
+            // 환경
+            const ground = new THREE.Mesh(new THREE.PlaneGeometry(500, 500), new THREE.MeshStandardMaterial({color: 0x3a7d2c}));
+            ground.rotation.x = -Math.PI/2;
             scene.add(ground);
-            scene.add(new THREE.AmbientLight(0x606060), new THREE.DirectionalLight(0xffffff, 1));
+            scene.add(new THREE.AmbientLight(0x707070), new THREE.DirectionalLight(0xffffff, 0.8));
 
-            // 캐릭터
+            // 캐릭터 모델 (팔다리 구조)
             player = new THREE.Group();
-            const body = new THREE.Mesh(new THREE.BoxGeometry(1, 1.2, 0.5), new THREE.MeshStandardMaterial({color: 0x00b0ff}));
-            body.position.y = 1.1;
-            const head = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), new THREE.MeshStandardMaterial({color: 0xffdbac}));
-            head.position.y = 2.0;
-            player.add(body, head);
+            const skinMat = new THREE.MeshStandardMaterial({color: 0xffdbac});
+            const shirtMat = new THREE.MeshStandardMaterial({color: 0x00b0ff});
+
+            const body = new THREE.Mesh(new THREE.BoxGeometry(1, 1.2, 0.5), shirtMat); body.position.y = 1.1; player.add(body);
+            const head = new THREE.Mesh(new THREE.BoxGeometry(0.6, 0.6, 0.6), skinMat); head.position.y = 2.0; player.add(head);
+
+            // 팔 (L/R)
+            const armGeom = new THREE.BoxGeometry(0.4, 1, 0.4);
+            limbs.lArm = new THREE.Mesh(armGeom, skinMat); limbs.lArm.position.set(-0.7, 1.1, 0); player.add(limbs.lArm);
+            limbs.rArm = new THREE.Mesh(armGeom, skinMat); limbs.rArm.position.set(0.7, 1.1, 0); player.add(limbs.rArm);
+
+            // 다리 (L/R)
+            const legGeom = new THREE.BoxGeometry(0.45, 1, 0.45);
+            limbs.lLeg = new THREE.Mesh(legGeom, skinMat); limbs.lLeg.position.set(-0.25, 0.5, 0); player.add(limbs.lLeg);
+            limbs.rLeg = new THREE.Mesh(legGeom, skinMat); limbs.rLeg.position.set(0.25, 0.5, 0); player.add(limbs.rLeg);
+
             scene.add(player);
 
-            // 이벤트 설정
-            window.addEventListener('keydown', (e) => keys[e.code] = true);
+            // 입력 이벤트
+            window.addEventListener('keydown', (e) => {
+                keys[e.code] = true;
+                if(e.code === 'Escape') toggleEscMenu();
+                if(e.code === 'Space' && !isJumping && !isChatting()) {
+                    pyVelocity = 0.35;
+                    isJumping = true;
+                }
+            });
             window.addEventListener('keyup', (e) => keys[e.code] = false);
             window.addEventListener('mousedown', (e) => { if(e.button === 2) isRightMouseDown = true; });
-            window.addEventListener('mouseup', (e) => { if(e.button === 2) isRightMouseDown = false; });
+            window.addEventListener('mouseup', (e) => isRightMouseDown = false);
             window.addEventListener('mousemove', (e) => {
-                if (isRightMouseDown) {
+                if(isRightMouseDown) {
                     cameraAngleX -= e.movementX * 0.005;
-                    cameraAngleY += e.movementY * 0.005;
-                    cameraAngleY = Math.max(0.1, Math.min(Math.PI / 2.1, cameraAngleY));
+                    cameraAngleY = Math.max(0.1, Math.min(1.5, cameraAngleY + e.movementY * 0.005));
                 }
             });
 
@@ -214,42 +203,63 @@
 
         function animate() {
             requestAnimationFrame(animate);
+            const time = clock.getElapsedTime();
+            const menuOpen = document.getElementById('esc-menu').style.display === 'flex';
 
-            if (!isChatting()) {
-                const moveSpeed = 0.15;
-                const forward = new THREE.Vector3(0, 0, -1).applyQuaternion(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), cameraAngleX));
-                const right = new THREE.Vector3(1, 0, 0).applyQuaternion(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), cameraAngleX));
+            if (!isChatting() && !menuOpen) {
+                let moving = false;
+                const speed = 0.15;
+                const fwd = new THREE.Vector3(0,0,-1).applyQuaternion(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), cameraAngleX));
+                const side = new THREE.Vector3(1,0,0).applyQuaternion(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0,1,0), cameraAngleX));
 
-                if (keys['KeyW']) player.position.add(forward.multiplyScalar(moveSpeed));
-                if (keys['KeyS']) player.position.sub(forward.multiplyScalar(moveSpeed));
-                if (keys['KeyA']) player.position.sub(right.multiplyScalar(moveSpeed));
-                if (keys['KeyD']) player.position.add(right.multiplyScalar(moveSpeed));
+                if(keys['KeyW']) { player.position.add(fwd.clone().multiplyScalar(speed)); moving = true; }
+                if(keys['KeyS']) { player.position.sub(fwd.clone().multiplyScalar(speed)); moving = true; }
+                if(keys['KeyA']) { player.position.sub(side.clone().multiplyScalar(speed)); moving = true; }
+                if(keys['KeyD']) { player.position.add(side.clone().multiplyScalar(speed)); moving = true; }
+
+                // 걷기 애니메이션
+                if(moving && !isJumping) {
+                    const walkCycle = Math.sin(time * 10) * 0.5;
+                    limbs.lLeg.rotation.x = walkCycle;
+                    limbs.rLeg.rotation.x = -walkCycle;
+                    limbs.lArm.rotation.x = -walkCycle;
+                    limbs.rArm.rotation.x = walkCycle;
+                } else {
+                    limbs.lLeg.rotation.x = limbs.rLeg.rotation.x = 0;
+                    limbs.lArm.rotation.x = limbs.rArm.rotation.x = 0;
+                }
+
+                // 점프/중력 로직
+                player.position.y += pyVelocity;
+                if(player.position.y > 0) {
+                    pyVelocity -= gravity;
+                } else {
+                    player.position.y = 0;
+                    pyVelocity = 0;
+                    isJumping = false;
+                }
             }
 
-            const offsetX = Math.sin(cameraAngleX) * Math.cos(cameraAngleY) * cameraDistance;
-            const offsetY = Math.sin(cameraAngleY) * cameraDistance;
-            const offsetZ = Math.cos(cameraAngleX) * Math.cos(cameraAngleY) * cameraDistance;
-
-            camera.position.set(player.position.x + offsetX, player.position.y + offsetY, player.position.z + offsetZ);
+            // 카메라 위치
+            const ox = Math.sin(cameraAngleX) * Math.cos(cameraAngleY) * cameraDistance;
+            const oy = Math.sin(cameraAngleY) * cameraDistance;
+            const oz = Math.cos(cameraAngleX) * Math.cos(cameraAngleY) * cameraDistance;
+            camera.position.set(player.position.x + ox, player.position.y + oy, player.position.z + oz);
             camera.lookAt(player.position.x, player.position.y + 1, player.position.z);
+
             renderer.render(scene, camera);
         }
 
-        // 채팅 로직
-        const chatInput = document.getElementById('chat-input');
-        chatInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-                if (chatInput.value) {
-                    const div = document.createElement('div');
-                    div.innerHTML = `<b>나:</b> ${chatInput.value}`;
-                    document.getElementById('chat-messages').appendChild(div);
-                    chatInput.value = "";
-                }
-                chatInput.blur();
+        // 채팅 시스템
+        const ci = document.getElementById('chat-input');
+        ci.addEventListener('keypress', (e) => {
+            if(e.key === 'Enter' && ci.value) {
+                const m = document.createElement('div');
+                m.innerHTML = `<b>나:</b> ${ci.value}`;
+                document.getElementById('chat-msgs').appendChild(m);
+                ci.value = ""; ci.blur();
             }
         });
-        window.addEventListener('keydown', (e) => { if(e.key === 'Enter' && !isChatting()) chatInput.focus(); });
-
     </script>
 </body>
 </html>
