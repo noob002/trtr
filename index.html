@@ -146,6 +146,30 @@
             camera.lookAt(playerMesh.position);
 
             renderer.render(scene, camera);
+        // Firebase SDK 추가 (Head 태그 내)
+import { initializeApp } from "https://www.gstatic.com/firebasejs/9.1.3/firebase-app.js";
+import { getAuth, signInWithEmailAndPassword } from "https://www.gstatic.com/firebasejs/9.1.3/firebase-auth.js";
+import { getFirestore, doc, setDoc } from "https://www.gstatic.com/firebasejs/9.1.3/firebase-firestore.js";
+
+// Firebase 설정 (본인의 Firebase 콘솔에서 복사)
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "login.firebaseapp.com",
+  projectId: "login-e6b02",
+  // ...
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
+
+// 유저 데이터 저장 예시
+async function saveUserData(uid, name) {
+  await setDoc(doc(db, "users", uid), {
+    nickname: name,
+    lastLogin: new Date()
+  });
+}
+        
         }
     </script>
 </body>
